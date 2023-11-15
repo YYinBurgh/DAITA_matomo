@@ -14,6 +14,8 @@
 ## Introduction 🌟
 
 Matomo's A/B Testing is a powerful tool for optimizing web traffic across different landing pages. This README outlines the workflow for conducting A/B testing using Matomo. Steps and options may vary depending on your needs and the Matomo version. For detailed instructions, check out [Matomo's A/B Testing User Guide](https://matomo.org/guide/reports/a-b-testing/).
+
+
 ![image](https://github.com/YYinBurgh/DAITA_matomo/assets/69682190/3e0e73c6-ee18-4751-acdb-b5fc9b11a699)
 
 ## Step-by-Step Guide 🛠️
