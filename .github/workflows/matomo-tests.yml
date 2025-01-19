@@ -13,6 +13,21 @@ on:
       - '**.x-dev'
       - 'next_release'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      is_preview:
+        type: boolean
+        required: false
+        default: false
+      ref:
+        type: string
+        required: false
+        default: ''
+    secrets:
+      ARTIFACTS_PASS:
+        required: false
+      TESTOMATIO_INTEGRATION:
+        required: false
 
 permissions:
   actions: read
@@ -27,17 +42,17 @@ permissions:
   statuses: none
 
 concurrency:
-  group: php-${{ github.ref }}
+  group: php-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   PHP:
     runs-on: ubuntu-20.04
     strategy:
-      fail-fast: false
+      fail-fast: ${{ inputs.is_preview == true }}
       matrix:
         type: [ 'UnitTests', 'SystemTestsPlugins', 'SystemTestsCore', 'IntegrationTestsCore', 'IntegrationTestsPlugins' ]
-        php: [ '7.2', '8.2', '8.3' ]
+        php: [ '7.2', '8.2', '8.4' ]
         engine: [ 'Mysql', 'Mariadb' ]
         adapter: [ 'PDO_MYSQL', 'MYSQLI' ]
         exclude:
@@ -45,13 +60,13 @@ jobs:
             engine: 'Mariadb'
           - php: '8.2'
             engine: 'Mysql'
-          - php: '8.3'
+          - php: '8.4'
             engine: 'Mariadb'
           - php: '7.2'
             adapter: 'MYSQLI'
           - php: '8.2'
             adapter: 'MYSQLI'
-          - php: '8.3'
+          - php: '8.4'
             adapter: 'PDO_MYSQL'
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +75,7 @@ jobs:
           persist-credentials: false
           submodules: true
           path: matomo
+          ref: ${{ inputs.ref || github.ref }}
       - name: running tests
         uses: matomo-org/github-action-tests@main
         with:
@@ -81,6 +97,7 @@ jobs:
           persist-credentials: false
           submodules: true
           path: matomo
+          ref: ${{ inputs.ref || github.ref }}
       - name: running tests
         uses: matomo-org/github-action-tests@main
         with:
@@ -97,6 +114,7 @@ jobs:
           persist-credentials: false
           submodules: true
           path: matomo
+          ref: ${{ inputs.ref || github.ref }}
       - name: running tests
         uses: matomo-org/github-action-tests@main
         with:
@@ -106,7 +124,7 @@ jobs:
   UI:
     runs-on: ubuntu-20.04
     strategy:
-      fail-fast: false
+      fail-fast: ${{ inputs.is_preview == true }}
       matrix:
         parts: [ 0,1,2,3 ]
     steps:
@@ -116,10 +134,10 @@ jobs:
           persist-credentials: false
           submodules: true
           path: matomo
+          ref: ${{ inputs.ref || github.ref }}
       - name: running tests
         uses: matomo-org/github-action-tests@main
         with:
-          testomatio: ${{ secrets.TESTOMATIO }}
           ui-test-options: '--num-test-groups=4 --test-group=${{ matrix.parts }}'
           test-type: 'UI'
           php-version: '7.2'
@@ -127,3 +145,4 @@ jobs:
           redis-service: true
           artifacts-pass: ${{ secrets.ARTIFACTS_PASS }}
           upload-artifacts: true
+          testomatio: ${{ secrets.TESTOMATIO }}

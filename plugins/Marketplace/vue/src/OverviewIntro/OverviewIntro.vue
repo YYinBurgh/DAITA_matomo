@@ -26,10 +26,7 @@
 
     <div class="installAllPaidPlugins" v-if="installAllPaidPluginsVisible">
       <InstallAllPaidPluginsButton
-        :paid-plugins-to-install-at-once="getPaidPluginsToInstallAtOnce"
-        :install-nonce="installNonce"
         :disabled="installDisabled"
-        :loading="installLoading"
       />
     </div>
 
@@ -49,6 +46,7 @@
       :install-nonce="installNonce"
       :update-nonce="updateNonce"
       :has-some-admin-access="hasSomeAdminAccess"
+      :num-users="numUsers"
       @triggerUpdate="this.updateOverviewData()"
       @startTrialStart="this.disableInstallAllPlugins(true)"
       @startTrialStop="this.disableInstallAllPlugins(false)"
@@ -62,10 +60,10 @@ import {
   AjaxHelper,
   ContentIntro, EnrichedHeadline, MatomoUrl,
 } from 'CoreHome';
+import { InstallAllPaidPluginsButton } from 'CorePluginsAdmin';
 import Marketplace from '../Marketplace/Marketplace.vue';
-import InstallAllPaidPluginsButton
-  from '../InstallAllPaidPluginsButton/InstallAllPaidPluginsButton.vue';
-import { TObject, TObjectArray } from '../types';
+
+import { TObject } from '../types';
 
 interface OverviewIntroState {
   updating: boolean;
@@ -86,10 +84,6 @@ export default defineComponent({
     isPluginsAdminEnabled: Boolean,
     isMultiServerEnvironment: Boolean,
     hasSomeAdminAccess: Boolean,
-    paidPluginsToInstallAtOnce: {
-      type: Array,
-      required: true,
-    },
     installNonce: {
       type: String,
       required: true,
@@ -124,6 +118,10 @@ export default defineComponent({
       type: Object,
       required: true,
     },
+    numUsers: {
+      type: Number,
+      required: true,
+    },
   },
   components: {
     InstallAllPaidPluginsButton,
@@ -149,17 +147,11 @@ export default defineComponent({
         ? this.updateData.isValidConsumer
         : this.isValidConsumer) as boolean;
     },
-    getPaidPluginsToInstallAtOnce(): TObjectArray {
-      return (this.updateData && typeof this.updateData.paidPluginsToInstallAtOnce !== 'undefined'
-        ? this.updateData.paidPluginsToInstallAtOnce
-        : this.paidPluginsToInstallAtOnce) as TObjectArray;
-    },
     installAllPaidPluginsVisible(): boolean {
       return ((this.getIsValidConsumer
         && this.isSuperUser
         && this.isAutoUpdatePossible
         && this.isPluginsAdminEnabled
-        && this.getPaidPluginsToInstallAtOnce?.length
       ) || (
         this.installDisabled && this.installLoading
       )) as boolean;

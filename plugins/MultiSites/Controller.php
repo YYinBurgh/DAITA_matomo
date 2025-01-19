@@ -15,6 +15,8 @@ use Piwik\Date;
 use Piwik\Piwik;
 use Piwik\Plugins\FeatureFlags\FeatureFlagManager;
 use Piwik\Plugins\MultiSites\FeatureFlags\ImprovedAllWebsitesDashboard;
+use Piwik\Plugins\Goals\API as GoalsAPI;
+use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
 use Piwik\Translation\Translator;
 use Piwik\View;
 
@@ -60,16 +62,12 @@ class Controller extends \Piwik\Plugin\Controller
 
         if ($this->featureFlagManager->isFeatureActive(ImprovedAllWebsitesDashboard::class)) {
             $view = new View('@MultiSites/allWebsitesDashboard');
-
-            if (Piwik::hasUserSuperUserAccess()) {
-                $view->kpiBadgeHits = '<strong>Plan:</strong> 600K hits/month';
-            }
         } else {
             $view = new View('@MultiSites/getSitesInfo');
         }
 
         $view->isWidgetized         = $isWidgetized;
-        $view->displayRevenueColumn = Common::isGoalPluginEnabled();
+        $view->displayRevenueColumn = $this->shouldDisplayRevenueColumn();
         $view->limit                = Config::getInstance()->General['all_websites_website_per_page'];
         $view->show_sparklines      = Config::getInstance()->General['show_multisites_sparklines'];
 
@@ -107,5 +105,35 @@ class Controller extends \Piwik\Plugin\Controller
         $view = $this->getLastUnitGraph($this->pluginName, __FUNCTION__, $api);
         $view->requestConfig->totals = 0;
         return $this->renderView($view);
+    }
+
+    private function shouldDisplayRevenueColumn(): bool
+    {
+        if (!Common::isGoalPluginEnabled()) {
+            return false;
+        }
+
+        if (!$this->featureFlagManager->isFeatureActive(ImprovedAllWebsitesDashboard::class)) {
+            return true;
+        }
+
+        $sites = SitesManagerAPI::getInstance()->getSitesWithAtLeastViewAccess();
+
+        foreach ($sites as $site) {
+            if ($site['ecommerce']) {
+                return true;
+            }
+        }
+
+        $idSites = array_column($sites, 'idsite');
+        $goals = GoalsAPI::getInstance()->getGoals($idSites);
+
+        foreach ($goals as $goal) {
+            if (0.0 < $goal['revenue'] || true === (bool) $goal['event_value_as_revenue']) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

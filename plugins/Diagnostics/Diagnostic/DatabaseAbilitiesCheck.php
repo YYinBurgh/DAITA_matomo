@@ -13,6 +13,7 @@ use Piwik\Common;
 use Piwik\Config;
 use Piwik\Db;
 use Piwik\DbHelper;
+use Piwik\SettingsPiwik;
 use Piwik\Translation\Translator;
 use Piwik\Url;
 
@@ -33,15 +34,15 @@ class DatabaseAbilitiesCheck implements Diagnostic
 
     public function execute()
     {
-        $isPiwikInstalling = !Config::getInstance()->existsLocalConfig();
-        if ($isPiwikInstalling) {
-            // Skip the diagnostic if Piwik is being installed
-            return array();
+        if (!SettingsPiwik::isMatomoInstalled()) {
+            // Skip the diagnostic if Matomo is being installed
+            return [];
         }
 
         $result = new DiagnosticResult($this->translator->translate('Installation_DatabaseAbilities'));
 
         $result->addItem($this->checkUtf8mb4Charset());
+        $result->addItem($this->checkCollation());
 
         if (Config::getInstance()->General['enable_load_data_infile']) {
             $result->addItem($this->checkLoadDataInfile());
@@ -90,6 +91,31 @@ class DatabaseAbilitiesCheck implements Diagnostic
                 '<a href="' . Url::addCampaignParametersToMatomoLink('https://matomo.org/faq/how-to-update/how-to-convert-the-database-to-utf8mb4-charset/') . '" rel="noreferrer noopener" target="_blank">', '</a>']) .
             '<br/>'
         );
+    }
+
+    protected function checkCollation(): DiagnosticResultItem
+    {
+        $dbSettings = new Db\Settings();
+        $collation = $dbSettings->getUsedCollation();
+
+        if ('' !== $collation) {
+            return new DiagnosticResultItem(DiagnosticResult::STATUS_OK, 'Connection collation');
+        }
+
+        $collationConnection = Db::get()->fetchOne('SELECT @@collation_connection');
+        $collationCharset = DbHelper::getDefaultCollationForCharset($dbSettings->getUsedCharset());
+
+        $message = sprintf(
+            'Connection collation<br/><br/>%s<br/><br/>%s<br/>',
+            $this->translator->translate('Diagnostics_DatabaseCollationNotConfigured'),
+            $this->translator->translate('Diagnostics_DatabaseCollationConnection', [$collationConnection])
+        );
+
+        if ('' !== $collationCharset) {
+            $message .= $this->translator->translate('Diagnostics_DatabaseCollationCharset', [$collationCharset]) . '<br/>';
+        }
+
+        return new DiagnosticResultItem(DiagnosticResult::STATUS_WARNING, $message);
     }
 
     protected function checkLoadDataInfile()
@@ -181,7 +207,7 @@ class DatabaseAbilitiesCheck implements Diagnostic
         $comment = 'Changing transaction isolation level';
 
         $level = new Db\TransactionLevel(Db::getReader());
-        if (!$level->setUncommitted()) {
+        if (!$level->setTransactionLevelForNonLockingReads()) {
             $status = DiagnosticResult::STATUS_WARNING;
             $comment .= '<br/>' . $this->translator->translate('Diagnostics_MysqlTransactionLevel');
         } else {

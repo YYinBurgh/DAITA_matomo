@@ -1,7 +1,10 @@
 {
     "Widgetize": {
+        "DisplayDashboardInIframeAllSites": "Voit myös tehdä kaikkien verkkosivustojen hallintapaneelista vimpaimen näköiseksi IFRAME-kehyksessä (%1$s_katso esimerkki%2$s)",
         "OpenInNewWindow": "Avaa uudessa ikkunassa",
         "PluginDescription": "Näytä mikä tahansa Matomon raporteista verkkosivullasi tai sovelluksessa yksinkertaisella HTML-upotuskoodinpätkällä (\"embed\").",
+        "Reports": "Tee raporteista vimpaimen näköiseksi",
+        "SelectAReport": "Valitse raportti ja kopioi ja liitä sivullesi vimpaimen alla oleva upotuskoodi:",
         "TopLinkTooltip": "Vie Matomon raportteja vimpaimiksi ja lisää työpöytä sovellukseesi iframe-kehyksenä."
     }
 }

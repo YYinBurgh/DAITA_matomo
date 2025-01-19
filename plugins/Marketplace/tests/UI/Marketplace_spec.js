@@ -138,6 +138,84 @@ describe("Marketplace", function () {
             await captureMarketplace('paid_plugins_with_license_' + mode);
         });
 
+        if (mode === 'superuser') {
+          [paidPluginsUrl, '?module=Marketplace&action=manageLicenseKey&idSite=1&period=day&date=yesterday', '?module=CorePluginsAdmin&action=plugins&idSite=1&period=day&date=yesterday&activated=']
+            .forEach(function (url, index) {
+              it(mode + ' for a user with license key should be able to open paid plugins ' + index, async() => {
+                  var indexArray = ['paidPluginsUrl', 'manageLicenseKeyUrl', 'managePluginsUrl'];
+                  setEnvironment(mode, validLicense);
+
+                  await page.goto('about:blank');
+                  await page.goto(url);
+
+                  await captureSelector('paid_plugins_with_license_' + indexArray[index] + '_' + mode, '.pageWrap');
+              });
+
+
+              it(mode + ' for a user with license key should be able to open install purchased plugins modal for ' + index, async() => {
+                  var indexArray = ['paidPluginsUrl', 'manageLicenseKeyUrl', 'managePluginsUrl'];
+                  setEnvironment(mode, validLicense);
+
+                  await page.goto('about:blank');
+                  await page.goto(url);
+                  await page.waitForNetworkIdle();
+                  await page.waitForTimeout(500);
+
+                  const elem = await page.jQuery(
+                    '.installAllPaidPluginsAtOnceButton.btn'
+                  );
+
+                  await elem.click();
+
+                  // give it some time to fetch, animate, and render everything properly
+                  await page.waitForNetworkIdle();
+                  await page.waitForTimeout(500);
+
+                  const pageElement = await page.$('.modal.open');
+                  expect(await pageElement.screenshot()).to.matchImage('install_purchased_plugins_modal_' + indexArray[index] + '_' + mode);
+              });
+            });
+        }
+
+        it(mode + ' should open paid plugins modal for paid plugin 1', async function () {
+            setEnvironment(mode, validLicense);
+            await page.goto('about:blank');
+            await page.goto(paidPluginsUrl);
+            await loadPluginDetailPage('Paid Plugin 1', false);
+
+            await captureWithPluginDetails('paid_plugin1_plugin_details_' + mode);
+        });
+
+        it(mode + ' should open paid plugins modal for paid plugin 2', async function () {
+            setEnvironment(mode, validLicense);
+            await page.goto('about:blank');
+            await page.goto(paidPluginsUrl);
+            await loadPluginDetailPage('Paid Plugin 2', false);
+
+            await captureWithPluginDetails('paid_plugin2_plugin_details_' + mode);
+        });
+
+        it(mode + ' should open paid plugins modal for paid plugin 3', async function () {
+            setEnvironment(mode, validLicense);
+            await loadPluginDetailPage('Paid Plugin 3', false);
+
+            await captureWithPluginDetails('paid_plugin3_plugin_details_' + mode);
+        });
+
+        it(mode + ' should open paid plugins modal for paid plugin 4', async function () {
+            setEnvironment(mode, validLicense);
+            await loadPluginDetailPage('Paid Plugin 4', false);
+
+            await captureWithPluginDetails('paid_plugin4_plugin_details_' + mode);
+        });
+
+        it(mode + ' should open paid plugins modal for paid plugin 5', async function () {
+            setEnvironment(mode, validLicense);
+            await loadPluginDetailPage('Paid Plugin 5', false);
+
+            await captureWithPluginDetails('paid_plugin5_plugin_details_' + mode);
+        });
+
         it(mode + ' for a user with exceeded license key should be able to open paid plugins', async function() {
             setEnvironment(mode, exceededLicense);
             assumePaidPluginsActivated();
@@ -156,6 +234,19 @@ describe("Marketplace", function () {
 
             await captureMarketplace('themes_with_valid_license_' + mode);
         });
+
+         it('should show themes page without install button when enable_plugins_admin=0', async function () {
+            setEnvironment(mode, validLicense);
+            testEnvironment.overrideConfig('General', 'enable_plugins_admin', '0');
+            testEnvironment.save();
+
+            await page.goto('about:blank');
+            await page.goto(themesUrl);
+
+            await captureMarketplace('themes_with_valid_license_disabled_' + mode);
+            testEnvironment.overrideConfig('General', 'enable_plugins_admin', '1');
+            testEnvironment.save();
+         });
 
         it('should show free plugin details', async function() {
             setEnvironment(mode, noLicense);
@@ -184,6 +275,15 @@ describe("Marketplace", function () {
             await loadPluginDetailPage('Paid Plugin 1', isFree);
 
             await captureWithPluginDetails('paid_plugin_details_valid_license_' + mode + '_installed');
+        });
+
+        it('should show an add to cart button with user selector', async function() {
+            setEnvironment(mode, noLicense);
+
+            var isFree = false;
+            await loadPluginDetailPage('Paid Plugin 1', isFree);
+
+            await captureWithPluginDetails('paid_plugin_details_add_to_cart_' + mode);
         });
 
         it('should show paid plugin details when having valid license', async function() {

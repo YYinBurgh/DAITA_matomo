@@ -91,6 +91,8 @@ class DeprecatedMethodsTest extends \PHPUnit\Framework\TestCase
         $this->assertDeprecatedMethodIsRemovedInMatomo6('Piwik\Plugins\Overlay\API', 'getExcludedQueryParameters');
         $this->assertDeprecatedMethodIsRemovedInMatomo6('Piwik\Db', 'isOptimizeInnoDBSupported');
         $this->assertDeprecatedMethodIsRemovedInMatomo6('Piwik\Db', 'optimizeTables');
+        $this->assertDeprecatedMethodIsRemovedInMatomo6('Piwik\Db\TransactionLevel', 'setUncommitted');
+        $this->assertDeprecatedMethodIsRemovedInMatomo6('Piwik\Plugins\SitesManager\API', 'setGlobalExcludedQueryParameters');
     }
 
 

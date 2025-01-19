@@ -59,7 +59,10 @@
         </div>
       </div>
 
-      <div class="modal-content__main">
+      <div
+        class="modal-content__main"
+        :class="{'modal-content__main--with-free-trial': showFreeTrialDropdown }"
+      >
         <div class="plugin-description">
           <MissingReqsNotice v-if="showMissingRequirementsNoticeIfApplicable" :plugin="plugin" />
 
@@ -81,6 +84,24 @@
           </div>
           <div v-else-if="showExceededLicenseDescription" class="alert alert-warning">
             {{ translate('Marketplace_PluginLicenseExceededDescription') }}
+          </div>
+          <div v-else-if="plugin.licenseStatus === 'Pending' && !isMultiServerEnvironment"
+               class="alert alert-warning"
+               v-html="$sanitize(getPendingLicenseHelpText(plugin.displayName))"
+          >
+          </div>
+          <div v-else-if="plugin.licenseStatus === 'Cancelled' && !isMultiServerEnvironment"
+               class="alert alert-warning"
+               v-html="$sanitize(getCancelledLicenseHelpText(plugin.displayName))"
+          >
+          </div>
+          <div v-else-if="
+          !plugin.hasDownloadLink
+          && !isMultiServerEnvironment
+          && (plugin.licenseStatus || !plugin.isPaid)"
+               class="alert alert-warning"
+               v-html="$sanitize(getDownloadLinkMissingHelpText(plugin.displayName))"
+          >
           </div>
 
           <div v-html="$sanitize(pluginDescription)"></div>
@@ -244,8 +265,39 @@
         </div>
 
       </div>
-      <div class="modal-content__footer">
-        <div class="cta-container">
+      <div
+        class="modal-content__footer"
+        :class="{'modal-content__footer--with-free-trial': showFreeTrialDropdown }"
+      >
+        <img v-if="showFreeTrialDropdown && isMatomoPlugin"
+             class="matomo-badge matomo-badge-modal"
+             src="plugins/Marketplace/images/matomo-badge.png"
+             aria-label="Matomo plugin"
+             alt=""
+        />
+        <div class="cta-container cta-container-modal">
+          <div v-if="showFreeTrialDropdown" class="free-trial">
+            <div class="free-trial-lead-in">{{ translate('Marketplace_TryFreeTrialTitle') }}</div>
+            <select
+              class="free-trial-dropdown"
+              :title="`${translate('Marketplace_ShownPriceIsExclTax')} ${translate(
+                'Marketplace_CurrentNumPiwikUsers',
+                numUsers
+                )}`"
+              v-model="selectedPluginShopVariationUrl"
+              @change="changeSelectedPluginShopVariationUrl"
+            >
+              <option v-for="(variation, index) in plugin.shop.variations" :key="`var-${index}`"
+                      :value="variation.addToCartUrl"
+                      :title="`${translate(
+                      'Marketplace_PriceExclTax',
+                      variation.price,
+                      variation.currency
+                    )} ${translate('Marketplace_CurrentNumPiwikUsers', numUsers)}`"
+              >{{ variation.name }} - {{ variation.prettyPrice }} / {{ variation.period }}</option>
+            </select>
+          </div>
+
           <CTAContainer
             :is-super-user="isSuperUser"
             :is-plugins-admin-enabled="isPluginsAdminEnabled"
@@ -258,11 +310,12 @@
             :update-nonce="updateNonce"
             :plugin="plugin"
             :in-modal="true"
+            :shop-variation-url="selectedShopVariationUrl"
             @requestTrial="emitTrialEvent('requestTrial')"
             @startFreeTrial="emitTrialEvent('startFreeTrial')"
           />
         </div>
-        <img v-if="'piwik' == plugin.owner || 'matomo-org' == plugin.owner"
+        <img v-if="!showFreeTrialDropdown && isMatomoPlugin"
              class="matomo-badge matomo-badge-modal"
              src="plugins/Marketplace/images/matomo-badge.png"
              aria-label="Matomo plugin"
@@ -275,21 +328,24 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { MatomoUrl } from 'CoreHome';
+import { MatomoUrl, translate, externalLink } from 'CoreHome';
 import {
   IPluginShopDetails,
   IPluginShopReviews,
+  IPluginShopVariation,
   PluginDetails,
   TObject,
   TObjectArray,
 } from '../types';
 import CTAContainer from '../PluginList/CTAContainer.vue';
 import MissingReqsNotice from '../MissingReqsNotice/MissingReqsNotice.vue';
+import ChangeEvent = JQuery.ChangeEvent;
 
 const { $ } = window;
 
 interface PluginDetailsModalState {
   isLoading: boolean;
+  currentPluginShopVariationUrl: string;
 }
 
 export default defineComponent({
@@ -339,10 +395,15 @@ export default defineComponent({
       type: Boolean,
       required: true,
     },
+    numUsers: {
+      type: Number,
+      required: true,
+    },
   },
   data(): PluginDetailsModalState {
     return {
       isLoading: true,
+      currentPluginShopVariationUrl: '',
     };
   },
   emits: [
@@ -385,6 +446,9 @@ export default defineComponent({
     },
     pluginShop(): IPluginShopDetails {
       return this.plugin.shop;
+    },
+    pluginShopVariations(): IPluginShopVariation[] {
+      return this.pluginShop?.variations || [];
     },
     pluginReviews(): IPluginShopReviews | TObject {
       return this.pluginShop?.reviews || {};
@@ -430,6 +494,15 @@ export default defineComponent({
       const license: TObject = this.pluginLatestVersion?.license as TObject || {};
       return !!license.name;
     },
+    showFreeTrialDropdown(): boolean {
+      return (
+        this.isSuperUser
+        && !this.plugin.isMissingLicense
+        && !this.plugin.isInstalled
+        && !this.plugin.hasExceededLicense
+        && this.plugin.isEligibleForFreeTrial
+      ) as boolean;
+    },
     pluginScreenshots(): string[] {
       return this.plugin.screenshots || [];
     },
@@ -440,8 +513,33 @@ export default defineComponent({
         || (this.plugin.lastUpdated && !this.plugin.isBundle)
       ) as boolean;
     },
+    pluginShopVariationsPretty(): string[] {
+      return this.pluginShopVariations.map(
+        (variation) => `${variation.name} - ${variation.prettyPrice} / ${variation.period}`,
+      );
+    },
+    pluginShopRecommendedVariation(): IPluginShopVariation | null {
+      const recommendedVariations = this.pluginShopVariations.filter((v) => v.recommended);
+      const defaultVariation = this.pluginShopVariations.length
+        ? this.pluginShopVariations[0]
+        : null;
+      return recommendedVariations.length ? recommendedVariations[0] : defaultVariation;
+    },
+    selectedPluginShopVariationUrl(): string {
+      return this.currentPluginShopVariationUrl
+        ? this.currentPluginShopVariationUrl
+        : this.pluginShopRecommendedVariation?.addToCartUrl || '';
+    },
+    selectedShopVariationUrl(): string {
+      return this.selectedPluginShopVariationUrl || '';
+    },
   },
   methods: {
+    changeSelectedPluginShopVariationUrl(event: ChangeEvent) {
+      if (event) {
+        this.currentPluginShopVariationUrl = event.target.value;
+      }
+    },
     applyExternalTarget() {
       setTimeout(() => {
         const root = this.$refs.root as HTMLElement;
@@ -524,6 +622,30 @@ export default defineComponent({
       setTimeout(() => {
         this.isLoading = false;
       }, 10); // just to prevent showing the modal when the plugin data are not yet passed in
+    },
+    getPendingLicenseHelpText(pluginName: string) {
+      return translate(
+        'Marketplace_PluginLicenseStatusPending',
+        pluginName,
+        externalLink('https://shop.matomo.org/my-account/'),
+        '</a>',
+      );
+    },
+    getCancelledLicenseHelpText(pluginName: string) {
+      return translate(
+        'Marketplace_PluginLicenseStatusCancelled',
+        pluginName,
+        externalLink('https://shop.matomo.org/my-account/'),
+        '</a>',
+      );
+    },
+    getDownloadLinkMissingHelpText(pluginName: string) {
+      return translate(
+        'Marketplace_PluginDownloadLinkMissingDescription',
+        pluginName,
+        externalLink('https://matomo.org/faq/plugins/faq_21/'),
+        '</a>',
+      );
     },
   },
 });

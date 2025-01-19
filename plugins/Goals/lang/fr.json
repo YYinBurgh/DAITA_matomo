@@ -99,7 +99,7 @@
         "Manually": "manuellement",
         "ManuallyTriggeredUsingJavascriptFunction": "Les objectifs sont déclenchés manuellement en utilisant l'API Javascript trackGoal()",
         "MatchesExpression": "correspond à l'expression %s",
-        "NGoals": "%sobjectifs",
+        "NGoals": "%s objectifs",
         "NItems": "%s éléments",
         "NRevenue": "%s revenu",
         "NeedAccess": "Uniquement un administrateur ou un utilisateur avec le rôle super utilisateur peut gérer les objectifs pour un site web.",

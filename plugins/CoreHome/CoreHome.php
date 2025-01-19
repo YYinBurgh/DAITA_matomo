@@ -186,7 +186,6 @@ class CoreHome extends \Piwik\Plugin
         $jsFiles[] = "libs/jqplot/jqplot-custom.min.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/color_manager.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/notification.js";
-        $jsFiles[] = "plugins/CoreHome/javascripts/numberFormatter.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/listingFormatter.js";
 
         // we have to load these CorePluginsAdmin files here. If we loaded them in CorePluginsAdmin,
@@ -409,7 +408,9 @@ class CoreHome extends \Piwik\Plugin
             Access::doAsSuperUser(function () use (&$translationKeys) {
                 $menu = MenuAdmin::getInstance()->getMenu();
                 foreach ($menu as $level1 => $level2) {
-                    $translationKeys[] = $level1;
+                    if (strpos($level1, '_') !== false) {
+                        $translationKeys[] = $level1;
+                    }
                     foreach ($level2 as $name => $params) {
                         if (strpos($name, '_') !== false) {
                             $translationKeys[] = $name;

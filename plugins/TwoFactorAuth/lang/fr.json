@@ -27,7 +27,6 @@
         "SetUpTwoFactorAuthentication": "Configurer l'authentification à deux facteurs (2FA)",
         "SetupAuthenticatorOnDevice": "Configurer l'authentificateur sur votre périphérique",
         "SetupAuthenticatorOnDeviceStep1": "Installez une application d'authentification, par exemple :",
-        "SetupAuthenticatorOnDeviceStep2": "Ensuite, ouvrez l'application et scannez le code bar ci-dessous avec l'application d'authentification à deux facteurs. Si vous ne pouvez pas scanner le code bar, %1$sentrez ce code%2$s à la place.",
         "SetupBackupRecoveryCodes": "Veuillez sauvegarder vos codes de récupération en toute sécurité en utilisant une des méthodes ci-dessus avant de continuer.",
         "SetupFinishedSubtitle": "Vous avez configuré l'authentification à deux facteurs. Vous aurez désormais besoin d'un code d'authentification pour vous connecter. Assurez-vous d'avoir votre périphérique mobile ou vos codes de récupération avec vous.",
         "SetupFinishedTitle": "Votre compte est désormais mieux sécurisé.",

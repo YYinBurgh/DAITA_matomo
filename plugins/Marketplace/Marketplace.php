@@ -125,7 +125,7 @@ class Marketplace extends \Piwik\Plugin
         $translationKeys[] = 'Marketplace_OverviewPluginSubscriptions';
         $translationKeys[] = 'Marketplace_OverviewPluginSubscriptionsAllDetails';
         $translationKeys[] = 'Marketplace_OverviewPluginSubscriptionsMissingInfo';
-        $translationKeys[] = 'Marketplace_OverviewPluginSubscriptionsMissingLicense';
+        $translationKeys[] = 'Marketplace_OverviewPluginSubscriptionsMissingLicenseMessage';
         $translationKeys[] = 'Marketplace_PluginSubscriptionsList';
         $translationKeys[] = 'Marketplace_PluginUploadDisabled';
         $translationKeys[] = 'Marketplace_PriceFromPerPeriod';
@@ -167,7 +167,6 @@ class Marketplace extends \Piwik\Plugin
         $translationKeys[] = 'Marketplace_AutoUpdateDisabledWarning';
         $translationKeys[] = 'Marketplace_ByXDevelopers';
         $translationKeys[] = 'Marketplace_ClickToCompletePurchase';
-        $translationKeys[] = 'Marketplace_CurrentNumPiwikUsers';
         $translationKeys[] = 'Marketplace_Developer';
         $translationKeys[] = 'Marketplace_FeaturedPlugin';
         $translationKeys[] = 'Marketplace_LastCommitTime';
@@ -187,6 +186,12 @@ class Marketplace extends \Piwik\Plugin
         $translationKeys[] = 'CorePluginsAdmin_Activity';
         $translationKeys[] = 'CorePluginsAdmin_Version';
         $translationKeys[] = 'CorePluginsAdmin_Websites';
+        $translationKeys[] = 'Marketplace_PluginLicenseStatusPending';
+        $translationKeys[] = 'Marketplace_PluginLicenseStatusCancelled';
+        $translationKeys[] = 'Marketplace_PluginDownloadLinkMissingPremium';
+        $translationKeys[] = 'Marketplace_PluginDownloadLinkMissingFree';
+        $translationKeys[] = 'Marketplace_PluginDownloadLinkMissingDescription';
+        $translationKeys[] = 'Marketplace_CreatedBy';
     }
 
     /**

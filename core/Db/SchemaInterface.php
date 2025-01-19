@@ -70,6 +70,16 @@ interface SchemaInterface
     public function getInstallVersion();
 
     /**
+     * Returns the supported read isolation transaction level
+     *
+     * For example:
+     *      READ COMMITTED
+     *      or
+     *      READ UNCOMMITTED
+     */
+    public function getSupportedReadIsolationTransactionLevel(): string;
+
+    /**
      * Truncate all tables
      */
     public function truncateAllTables();
@@ -124,6 +134,15 @@ interface SchemaInterface
      * @return bool
      */
     public function supportsComplexColumnUpdates(): bool;
+
+    /**
+     * Returns the default collation for a charset used by this database engine.
+     *
+     * @param string $charset
+     *
+     * @return string
+     */
+    public function getDefaultCollationForCharset(string $charset): string;
 
     /**
      * Return the default port used by this database engine

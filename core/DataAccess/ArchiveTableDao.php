@@ -36,14 +36,14 @@ class ArchiveTableDao
      */
     public function getArchiveTableAnalysis($tableDate)
     {
-        $numericQueryEmptyRow = array(
+        $numericQueryEmptyRow = [
             'count_archives' => '-',
             'count_invalidated_archives' => '-',
             'count_temporary_archives' => '-',
             'count_error_archives' => '-',
             'count_segment_archives' => '-',
             'count_numeric_rows' => '-',
-        );
+        ];
 
         $tableDate = str_replace("`", "", $tableDate); // for sanity
 
@@ -60,7 +60,7 @@ class ArchiveTableDao
                        SUM(CASE WHEN name NOT LIKE 'done%' THEN 1 ELSE 0 END) AS count_numeric_rows,
                        0 AS count_blob_rows
                   FROM `$numericTable`
-              GROUP BY idsite, date1, date2, period";
+              GROUP BY idsite, date1, date2, period ORDER BY idsite, period, date1, date2";
 
         $rows = Db::fetchAll($sql, array(ArchiveWriter::DONE_INVALIDATED, ArchiveWriter::DONE_OK_TEMPORARY,
             ArchiveWriter::DONE_ERROR, ArchiveWriter::DONE_ERROR_INVALIDATED));
@@ -76,14 +76,21 @@ class ArchiveTableDao
                        COUNT(*) AS count_blob_rows,
                        SUM(OCTET_LENGTH(value)) AS sum_blob_length
                   FROM `$blobTable`
-              GROUP BY idsite, date1, date1, period";
+              GROUP BY idsite, date1, date2, period ORDER BY idsite, period, date1, date2";
 
         foreach (Db::fetchAll($sql) as $blobStatsRow) {
             $label = $blobStatsRow['label'];
+
             if (isset($result[$label])) {
                 $result[$label] = array_merge($result[$label], $blobStatsRow);
             } else {
-                $result[$label] = $blobStatsRow + $numericQueryEmptyRow;
+                // ensure rows without numeric entries have the
+                // same internal result array key order
+                $result[$label] = array_merge(
+                    ['label' => $label],
+                    $numericQueryEmptyRow,
+                    $blobStatsRow
+                );
             }
         }
 

@@ -32,6 +32,7 @@
     :activate-nonce="activateNonce"
     :install-nonce="installNonce"
     :update-nonce="updateNonce"
+    :num-users="numUsers"
     @requestTrial="this.requestTrial($event)"
     @startFreeTrial="this.startFreeTrial($event)"
   />
@@ -72,6 +73,12 @@
               <div class="card-content-bottom">
                 <div v-if="plugin.numDownloads > 0" class="downloads">
                   {{ plugin.numDownloadsPretty }} {{ translate('General_Downloads').toLowerCase() }}
+                </div>
+                <div class="owner">
+                  {{translate('Marketplace_CreatedBy')}}
+                  <span
+                    v-if="plugin.owner === 'piwik' || plugin.owner === 'matomo-org'"> Matomo</span>
+                  <span v-else> {{ plugin.owner }}</span>
                 </div>
                 <div class="cta-container">
                   <CTAContainer
@@ -168,6 +175,10 @@ export default defineComponent({
     },
     updateNonce: {
       type: String,
+      required: true,
+    },
+    numUsers: {
+      type: Number,
       required: true,
     },
   },

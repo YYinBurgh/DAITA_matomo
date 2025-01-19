@@ -63,13 +63,6 @@ describe('AllWebsitesDashboard', function () {
     describe('Rendering', function () {
         this.title = parentSuite.title; // to make sure the screenshot prefix is the same
 
-        afterEach(function() {
-            delete testEnvironment.configOverride.General.show_multisites_sparklines;
-            delete testEnvironment.pluginsToUnload;
-
-            testEnvironment.save();
-        });
-
         it('should load the all websites dashboard correctly', async function () {
             await page.goto(dashboardUrl);
             await page.waitForNetworkIdle();
@@ -84,24 +77,124 @@ describe('AllWebsitesDashboard', function () {
             expect(await page.screenshotSelector('#main')).to.matchImage('widgetized');
         });
 
-        it('should not display revenue if disabled', async function () {
-            testEnvironment.pluginsToUnload = ['Goals'];
-            testEnvironment.save();
+        describe('with deactivated show_multisites_sparklines configuration', function () {
+            this.title = parentSuite.title; // to make sure the screenshot prefix is the same
 
-            await page.goto(dashboardUrl);
-            await page.waitForNetworkIdle();
+            before(function () {
+                testEnvironment.overrideConfig('General', 'show_multisites_sparklines', 0);
+                testEnvironment.save();
+            });
 
-            expect(await page.screenshotSelector('#main')).to.matchImage('no_revenue');
+            after(function () {
+                delete testEnvironment.configOverride.General.show_multisites_sparklines;
+
+                testEnvironment.save();
+            });
+
+            it('should not display sparklines', async function () {
+                await page.goto(dashboardUrl);
+                await page.waitForNetworkIdle();
+
+                expect(await page.screenshotSelector('#main')).to.matchImage('no_sparklines');
+            });
         });
 
-        it('should not display sparklines if disabled', async function () {
-            testEnvironment.overrideConfig('General', 'show_multisites_sparklines', 0);
-            testEnvironment.save();
-
+        it('should correctly display a KPI badge when added through event', async function () {
             await page.goto(dashboardUrl);
             await page.waitForNetworkIdle();
 
-            expect(await page.screenshotSelector('#main')).to.matchImage('no_sparklines');
+            await page.evaluate(() => {
+              window.CoreHome.Matomo.on('MultiSites.DashboardKPIs.updated', function(data) {
+                  data.kpis.badges.hits = '<strong>Plan:</strong> 600K hits/month';
+              })
+            });
+
+            // change period to trigger reload of KPIS
+            await page.click('.move-period-prev');
+            await page.click('.move-period-next');
+            await page.waitForNetworkIdle();
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_kpi_badge');
+        });
+
+        it('should correctly display all badges when added through event', async function () {
+            await page.goto(dashboardUrl);
+            await page.waitForNetworkIdle();
+
+            await page.evaluate(() => {
+              window.CoreHome.Matomo.on('MultiSites.DashboardKPIs.updated', function(data) {
+                  data.kpis.badges.hits = '<strong>Plan:</strong> 600K hits/month';
+                  data.kpis.badges.pageviews = 'Weird Pageview Badge';
+                  data.kpis.badges.revenue = 'Awesome Revenue Badge';
+                  data.kpis.badges.visits = 'Terrific Visits Badge';
+              })
+            });
+
+            // change period to trigger reload of KPIS
+            await page.click('.move-period-prev');
+            await page.click('.move-period-next');
+            await page.waitForNetworkIdle();
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_all_badges');
+        });
+    });
+
+    describe('Revenue Column', function () {
+        describe('Deactivated Goals plugin', function () {
+            this.title = parentSuite.title; // to make sure the screenshot prefix is the same
+
+            before(function () {
+                testEnvironment.pluginsToUnload = ['Goals'];
+                testEnvironment.save();
+            });
+
+            after(function () {
+              delete testEnvironment.pluginsToUnload;
+
+                testEnvironment.save();
+            });
+
+            it('should not display revenue column with deactivated Goals plugin', async function () {
+                await page.goto(dashboardUrl);
+                await page.waitForNetworkIdle();
+
+                expect(await page.screenshotSelector('#main')).to.matchImage('no_revenue');
+            });
+        });
+
+        describe('Site/Goal Configuration', function () {
+            afterEach(function () {
+                delete testEnvironment.idSitesViewAccess;
+
+                testEnvironment.save();
+            });
+
+            [
+                [1, 'Site Ecommerce', true],
+                [2, 'Site Goal Default Value', true],
+                [3, 'Site Goal Event Value', true],
+                [4, 'Site Goal Without Value', false],
+            ].forEach(async function ([siteId, siteName, shouldDisplayRevenue]) {
+                it(`${shouldDisplayRevenue ? 'should' : 'should not'} display revenue column (${siteName})`, async function () {
+                    const testUrl = dashboardUrl.replace(/idSite=\d+/, `idSite=${siteId}`);
+
+                    testEnvironment.idSitesViewAccess = [siteId];
+                    testEnvironment.save();
+
+                    await page.goto(testUrl);
+                    await page.waitForNetworkIdle();
+
+                    expect(await getSitesTableCell(1, 1)).to.equal(siteName);
+
+                    const revenueHeader = await page.jQuery('th:contains("Revenue")');
+
+                    if (shouldDisplayRevenue) {
+                        expect(revenueHeader).to.be.ok;
+                    } else {
+                        expect(revenueHeader).to.be.null;
+                    }
+                });
+            });
         });
     });
 
@@ -119,7 +212,7 @@ describe('AllWebsitesDashboard', function () {
             await page.goto(dashboardUrl);
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 1');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site Ecommerce');
             expect(await getSitesPagination()).to.equal('1–10 of 15');
 
             await page.type('.siteSearch input', 'Site 15');
@@ -172,7 +265,7 @@ describe('AllWebsitesDashboard', function () {
             await page.waitForNetworkIdle();
 
             expect(await getPeriodSelectorTitle()).to.equal('2013-01-23');
-            expect(await getSitesTableCell(1, 2)).to.equal('2');
+            expect(await getSitesTableCell(1, 2)).to.equal('6');
 
             await page.click('.periodSelector .move-period-prev');
             await page.waitForNetworkIdle();
@@ -189,14 +282,16 @@ describe('AllWebsitesDashboard', function () {
             await page.goto(dashboardUrl);
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 1');
-            expect(await getSitesTableCell(1, 2)).to.equal('2');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site Ecommerce');
+            expect(await getSitesTableCell(1, 2)).to.equal('6');
+            expect(await getSitesTableCell(2, 1)).to.equal('Site Goal Default Value');
+            expect(await getSitesTableCell(2, 2)).to.equal('3');
 
             // reverse default "visits" sorting
             await page.click('.sitesTableSort.sitesTableSortDesc');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.not.equal('Site 1');
+            expect(await getSitesTableCell(1, 1)).to.not.equal('Site Ecommerce');
             expect(await getSitesTableCell(1, 2)).to.equal('0');
         });
 
@@ -205,35 +300,37 @@ describe('AllWebsitesDashboard', function () {
             await page.click('.sitesTable th:nth-child(1)');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 1');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site 5');
 
             await page.click('.sitesTablePagination .dataTableNext');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 11');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site 15');
             expect(await getSitesPagination()).to.equal('11–15 of 15');
 
             await page.click('.sitesTablePagination .dataTablePrevious');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 1');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site 5');
             expect(await getSitesPagination()).to.equal('1–10 of 15');
         });
 
         it('should allow sorting by other metrics', async function () {
-            // sort by "pageviews"
-            await page.click('.sitesTable th:nth-child(3)');
+            // sort by "hits"
+            await page.click('.sitesTable th:nth-child(4)');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.equal('Site 1');
-            expect(await getSitesTableCell(1, 3)).to.equal('3');
+            expect(await getSitesTableCell(1, 1)).to.equal('Site Ecommerce');
+            expect(await getSitesTableCell(1, 4)).to.equal('6');
+            expect(await getSitesTableCell(2, 1)).to.equal('Site Goal Event Value');
+            expect(await getSitesTableCell(2, 4)).to.equal('4');
 
             // reverse sorting
-            await page.click('.sitesTable th:nth-child(3)');
+            await page.click('.sitesTable th:nth-child(4)');
             await page.waitForNetworkIdle();
 
-            expect(await getSitesTableCell(1, 1)).to.not.equal('Site 1');
-            expect(await getSitesTableCell(1, 3)).to.equal('0');
+            expect(await getSitesTableCell(1, 1)).to.not.equal('Site Ecommerce');
+            expect(await getSitesTableCell(1, 4)).to.equal('0');
         });
 
         it('should allow changing the evolution metric', async function () {
@@ -248,6 +345,69 @@ describe('AllWebsitesDashboard', function () {
             await page.waitForNetworkIdle();
 
             expect(await page.screenshotSelector('#main')).to.matchImage('evolution_change');
+        });
+    });
+
+    describe('Responsive View', function () {
+        this.title = parentSuite.title; // to make sure the screenshot prefix is the same
+
+        it('should display correctly in tablet view', async function () {
+            await page.webpage.setViewport({ width: 768, height: 1024 });
+            await page.goto(dashboardUrl);
+            await page.waitForNetworkIdle();
+
+            await page.evaluate(() => {
+              window.CoreHome.Matomo.on('MultiSites.DashboardKPIs.updated', function(data) {
+                data.kpis.badges.hits = '<strong>Plan:</strong> 600K hits/month';
+                data.kpis.badges.pageviews = 'Weird Pageview Badge';
+                data.kpis.badges.revenue = 'Awesome Revenue Badge';
+                data.kpis.badges.visits = 'Terrific Visits Badge';
+              })
+            });
+
+            // change period to trigger reload of KPIS
+            await page.click('.move-period-prev');
+            await page.click('.move-period-next');
+            await page.waitForNetworkIdle();
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_tablet');
+        });
+
+        it('should display correctly in mobile view', async function () {
+            await page.webpage.setViewport({ width: 352, height: 1024 });
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_mobile');
+        });
+
+        it('should display correctly in tablet view without revenue', async function () {
+            testEnvironment.pluginsToUnload = ['Goals'];
+            testEnvironment.save();
+
+            await page.webpage.setViewport({ width: 768, height: 1024 });
+            await page.goto(dashboardUrl);
+            await page.waitForNetworkIdle();
+
+            await page.evaluate(() => {
+              window.CoreHome.Matomo.on('MultiSites.DashboardKPIs.updated', function(data) {
+                data.kpis.badges.hits = '<strong>Plan:</strong> 600K hits/month';
+                data.kpis.badges.pageviews = 'Weird Pageview Badge';
+                data.kpis.badges.revenue = 'Awesome Revenue Badge';
+                data.kpis.badges.visits = 'Terrific Visits Badge';
+              })
+            });
+
+            // change period to trigger reload of KPIS
+            await page.click('.move-period-prev');
+            await page.click('.move-period-next');
+            await page.waitForNetworkIdle();
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_tablet_no_revenue');
+        });
+
+        it('should display correctly in mobile view without revenue', async function () {
+            await page.webpage.setViewport({ width: 352, height: 1024 });
+
+            expect(await page.screenshotSelector('#main')).to.matchImage('dashboard_mobile_no_revenue');
         });
     });
 });
